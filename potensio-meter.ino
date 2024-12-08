@@ -1,11 +1,11 @@
-int pot = 14;
+int Potensiometer = 14;
 
 void setup() {
   Serial.begin(9600);
 }
 
 void loop() {
-  int potv = analogRead(pot);
-  Serial.println(potv);
+  int PotensiometerValue = analogRead(Potensiometer);
+  Serial.println(PotensiometerValue);
   delay(500);
 }

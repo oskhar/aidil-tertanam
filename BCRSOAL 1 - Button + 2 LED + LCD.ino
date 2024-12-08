@@ -21,20 +21,20 @@ void loop() {
   if (buttonState == HIGH && isActive == false) {
     isActive = true;
     if (pressCount % 2 == 0){
-  lcd.clear();
+      lcd.clear();
       digitalWrite(pinLed1, HIGH); 
       digitalWrite(pinLed2, LOW);
-  lcd.print("Genap");
+      lcd.print("Genap");
     } else if (pressCount % 5 == 0){
-  lcd.clear();
+      lcd.clear();
       digitalWrite(pinLed1, LOW); 
       digitalWrite(pinLed2, HIGH);
-  lcd.print("Oskhar Gans");
+      lcd.print("Oskhar Gans");
     } else if (pressCount % 2 != 0){
-  lcd.clear();
+      lcd.clear();
       digitalWrite(pinLed1, LOW); 
       digitalWrite(pinLed2, LOW);
-  lcd.print("Ganjil");
+      lcd.print("Ganjil");
     }
     pressCount++;
   } else if (buttonState == LOW && isActive == true) {
