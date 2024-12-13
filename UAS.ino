@@ -30,12 +30,12 @@ void loop() {
   float ldr2Percent = (ldr2Value / 4095.0) * 100;
 
   // Tampilkan hasil ke Serial Monitor
-  float brightnessIntensity = (4095 - ldr1Value + 4095 - ldr1Value) / 2;
+  float brightnessIntensity = (((4095 - ldr1Value + 4095 - ldr2Value) / 2) / 8190 ) * 100;
   Serial.print("Intensitas cahaya diterima: ");
   Serial.print(brightnessIntensity);
   Serial.println("%");
 
-  if(lldr1Percent <= ldr2Percent + 5 || dr1Percent >= ldr2Percent - 5){
+  if(ldr1Percent <= ldr2Percent + 5 || ldr1Percent >= ldr2Percent - 5){
   }else if(ldr1Value > ldr2Value){
     if(deg < 180){
 
