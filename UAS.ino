@@ -8,8 +8,8 @@
 
 const char* ssid = "realme";
 const char* password = "12345678";
-const char* botToken = "7928981214:AAGO7AJnLuSxZBPoriQzr1mlaXO2dL_Bh9U";
-const char* chatID = "1311526288";
+const char* botToken = "7717841869:AAHsyUb9XCHuZjfBqgOqg7_MwmtltTcLSeY";
+const char* chatID = "5464641183";
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(botToken, client);
@@ -36,6 +36,7 @@ void setup() {
   pinMode(LDR1_PIN, INPUT);
   pinMode(LDR2_PIN, INPUT);
   pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH);
 
   servo1.attach(servoPin);
   servo1.write(0); // Mulai dengan posisi servo 0°
@@ -65,20 +66,22 @@ void loop() {
   bool isNight = now.hour() >= 18 || now.hour() < 6;
   int relayState = digitalRead(RELAY_PIN);
 
-  if (isNight && relayState == LOW) digitalWrite(RELAY_PIN);
-  if (!isNight && relayState == HIGH) digitalWrite(RELAY_PIN);
+  if (isNight && relayState == HIGH) digitalWrite(RELAY_PIN, LOW);
+  if (!isNight && relayState == LOW) digitalWrite(RELAY_PIN, HIGH);
 
   Serial.println(isNight ? "malam" : "siang");
 
   // Membaca nilai ADC dari LDR
   int ldr1Value = analogRead(LDR1_PIN); // Membaca LDR1
   int ldr2Value = analogRead(LDR2_PIN); // Membaca LDR2
+  Serial.println(ldr1Value);
+  Serial.println(ldr2Value);
 
   // Konversi nilai ke persentase (opsional)
-  float ldr1Percent = (ldr1Value / 4095.0) * 100; // ESP32 ADC memiliki resolusi 12-bit
-  float ldr2Percent = (ldr2Value / 4095.0) * 100;
+  float ldr1Percent = ((4095.0 - ldr1Value) / 4095.0) * 100; // ESP32 ADC memiliki resolusi 12-bit
+  float ldr2Percent = ((4095.0 - ldr2Value) / 4095.0) * 100;
 
-  float brightnessIntensity = (((4095 - ldr1Value + 4095 - ldr2Value) / 2) / 8190 ) * 100;
+  float brightnessIntensity = ldr1Percent > ldr2Percent ? ldr1Percent : ldr2Percent;
   Serial.print("Intensitas cahaya diterima: ");
   Serial.print(brightnessIntensity);
   Serial.println("%");
@@ -101,22 +104,42 @@ void loop() {
   int currentTimeInMinutes = currentHour * 60 + currentMinute;
 
   // Cek apakah waktu sekarang ada dalam rentang waktu yang ditentukan
-  if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes) {
-    // Hitung persentase waktu yang telah berlalu
-    int elapsedTime = currentTimeInMinutes - startTimeInMinutes;
-    int totalTime = endTimeInMinutes - startTimeInMinutes;
+  // if (ldr1Value > ldr2Value + 100 || ldr1Value < ldr2Value - 100) {
+  //   Serial.println(deg);
+  //   if (ldr1Value < ldr2Value - 100 && deg > 0) deg--;
+  //   else if (ldr1Value > ldr2Value + 100 && deg < 180) deg++;
+  //   servo1.write(deg);
+  // }
 
-    // Mapped deg: 0° pada 5:30 AM dan 180° pada 6:30 PM
-    deg = map(elapsedTime, 0, totalTime, 0, 180);
+  int difference = ldr1Value - ldr2Value; // Menghitung selisih antara kedua LDR
+  Serial.println(abs(difference));
+  Serial.println();
 
-    // Update posisi servo
-    servo1.write(deg);
-    Serial.print("Servo position: ");
+  // Jika ada perbedaan signifikan antara kedua LDR
+  if (abs(difference) > 500) {
+    // Hitung perubahan derajat berdasarkan selisih LDR
+    // Sesuaikan rentang input sesuai dengan kemungkinan selisih LDR
+    // Misalnya, selisih maksimum sekitar 1023, jadi map -1023 to 1023 ke -90 to 90
+    int change = map(difference, -4095, 4095, -90, 90);
+
+    // Batasi perubahan agar servo tetap dalam rentang 0-180
+    deg += change;
+    if (deg < 0) {
+      deg = 0;
+    }
+    if (deg > 125) {
+      deg = 125;
+    }
+
+    // Tampilkan sudut baru
+    Serial.print("Sudut Servo: ");
     Serial.println(deg);
+
+    // Gerakkan servo ke sudut baru
+    servo1.write(deg);
   }
 
   int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-
   for (int i = 0; i < numNewMessages; i++) {
     String message = bot.messages[i].text;
     String fromName = bot.messages[i].from_name;
@@ -124,10 +147,10 @@ void loop() {
     Serial.println("Pesan diterima: " + message);
     if (message == "/laporan") {
       if (isNight) {
-        String sensorMessage = "Intensitas cahaya yang diterima: " + String(brightnessIntensity) + "%\n";
+        String sensorMessage = "Intensitas cahaya yang diterima: " + String(brightnessIntensity) + "%\n\n";
         if (brightnessIntensity > 80) sensorMessage += "Persentase sangat tinggi, itu menandakan solar panel benar benar efesien dalam penerimaan cahaya dan pengumpulan daya.";
         else if (brightnessIntensity >= 50) sensorMessage += "Persentase stabil, pengisian daya sudah cukup untuk beberapa malam ke depan.";
-        else if (brightnessIntensity < 50) sensorMessage += "Persentase rendah, kemungkinan cuacah sedang tidak mendukung, pengisian daya sangat lambat"
+        else if (brightnessIntensity < 50) sensorMessage += "Persentase rendah, kemungkinan cuacah sedang tidak mendukung, pengisian daya sangat lambat";
           bot.sendMessage(chatID, sensorMessage, "");
       } else {
           bot.sendMessage(chatID, "Pengisian daya terhenti, Tidak ada cahaya yang diterima saat malam!", "");
@@ -138,8 +161,8 @@ void loop() {
     }
   }
 
-  // delay(500);
+  delay(50);
 
   // Tambahkan delay agar data tidak terlalu cepat muncul
-  delay(1000);
+  // delay(1000);
 }
