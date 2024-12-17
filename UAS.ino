@@ -2,6 +2,17 @@
 #include <Wire.h>
 #include "RTClib.h"
 #include <ESP32Servo.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+
+const char* ssid = "realme";
+const char* password = "12345678";
+const char* botToken = "7928981214:AAGO7AJnLuSxZBPoriQzr1mlaXO2dL_Bh9U";
+const char* chatID = "1311526288";
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(botToken, client);
 
 RTC_DS3231 rtc;
 
@@ -34,6 +45,16 @@ void setup() {
     Serial.println("Couldn't find RTC");
     while (1);
   }
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Mencoba menghubungkan ke WiFi...");
+  }
+  Serial.println("Terhubung ke WiFi!");
+
+  client.setInsecure();
+  bot.sendMessage(chatID, "Bot Telegram sudah terhubung dengan ESP32!", "");
 
   // Atur waktu RTC sesuai dengan waktu kompilasi sketch
   rtc.adjust(DateTime(__DATE__, __TIME__));
@@ -92,6 +113,29 @@ void loop() {
     servo1.write(deg);
     Serial.print("Servo position: ");
     Serial.println(deg);
+  }
+
+  int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+
+  for (int i = 0; i < numNewMessages; i++) {
+    String message = bot.messages[i].text;
+    String fromName = bot.messages[i].from_name;
+
+    Serial.println("Pesan diterima: " + message);
+    if (message == "/laporan") {
+      if (isNight) {
+        String sensorMessage = "Intensitas cahaya yang diterima: " + String(brightnessIntensity) + "%\n";
+        if (brightnessIntensity > 80) sensorMessage += "Persentase sangat tinggi, itu menandakan solar panel benar benar efesien dalam penerimaan cahaya dan pengumpulan daya.";
+        else if (brightnessIntensity >= 50) sensorMessage += "Persentase stabil, pengisian daya sudah cukup untuk beberapa malam ke depan.";
+        else if (brightnessIntensity < 50) sensorMessage += "Persentase rendah, kemungkinan cuacah sedang tidak mendukung, pengisian daya sangat lambat"
+          bot.sendMessage(chatID, sensorMessage, "");
+      } else {
+          bot.sendMessage(chatID, "Pengisian daya terhenti, Tidak ada cahaya yang diterima saat malam!", "");
+      }
+    }
+    else {
+      bot.sendMessage(chatID, "Perintah tidak dikenali.");
+    }
   }
 
   // delay(500);
